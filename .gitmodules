@@ -1,12 +1,12 @@
 [submodule "game-service"]
 	path = game-service
-	url = https://github.com/iaeah/game-service.git
+	url = https://github.com/TiaYeah/game-service.git
 [submodule "auth-service"]
 	path = auth-service
-	url = https://github.com/iaeah/auth-service.git
+	url = https://github.com/TiaYeah/auth-service.git
 [submodule "user-profile-service"]
 	path = user-profile-service
-	url = https://github.com/iaeah/user-profile-service.git
+	url = https://github.com/TiaYeah/user-profile-service.git
 [submodule "frontend"]
 	path = frontend
-	url = https://github.com/iaeah/ame-frontend.git
+	url = https://github.com/TiaYeah/ame-frontend.git
