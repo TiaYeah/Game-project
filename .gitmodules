@@ -9,4 +9,4 @@
 	url = https://github.com/TiaYeah/user-profile-service.git
 [submodule "frontend"]
 	path = frontend
-	url = https://github.com/TiaYeah/ame-frontend.git
+	url = https://github.com/TiaYeah/game-frontend.git
