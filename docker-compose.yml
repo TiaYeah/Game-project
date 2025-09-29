@@ -1,0 +1,178 @@
+version: '3.8'
+
+services:
+  game-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${GAME_POSTGRES_DB}
+      POSTGRES_USER: ${GAME_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${GAME_POSTGRES_PASSWORD}
+    ports:
+      - "7432:5432"
+    volumes:
+      - game_postgres_data:/var/lib/postgresql/data
+    networks:
+      - "game-net"
+
+  game-service:
+    build: ./game-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - game-postgres
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://game-postgres:5432/${GAME_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${GAME_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${GAME_POSTGRES_PASSWORD}
+      TRUSTED_SERVICE_0_SECRET: ${TRUSTED_SERVICE_0_SECRET}
+      TRUSTED_SERVICE_1_SECRET: ${TRUSTED_SERVICE_1_SECRET}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID}
+      KAFKA_TRUSTED_PACKAGES: ${KAFKA_TRUSTED_PACKAGES}
+      SPRING_PROFILES_ACTIVE: prod
+    volumes:
+      - ./game-service/images:/app/images
+    networks:
+      - "game-net"
+
+  auth-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${AUTH_POSTGRES_DB}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+    ports:
+      - "6432:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    networks:
+      - "game-net"
+
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-postgres
+      - redis
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/${AUTH_POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${AUTH_POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+      TRUSTED_SERVICE_0_SECRET: ${TRUSTED_SERVICE_0_SECRET}
+      TRUSTED_SERVICE_1_SECRET: ${TRUSTED_SERVICE_1_SECRET}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - "game-net"
+
+  user-profile-service:
+    build: ./user-profile-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - game-service
+      - auth-service
+    environment:
+      USER_SECRET: ${TRUSTED_SERVICE_0_SECRET}
+      TRUSTED_SERVICE_1_SECRET: ${TRUSTED_SERVICE_1_SECRET}
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - "game-net"
+
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
+    networks:
+      - "game-net"
+
+
+  kafka-1:
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_KRAFT_CLUSTER_ID=Dp8EP4xuT4O19qjQjGee2Q
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9091,2@kafka-2:9091,3@kafka-3:9091
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-1:9090,EXTERNAL://${HOSTNAME:-localhost}:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    volumes:
+      - kafka-1-data:/bitnami/kafka
+    networks:
+      - "game-net"
+
+  kafka-2:
+    image: bitnami/kafka:latest
+    ports:
+      - "9094:9094"
+    environment:
+      - KAFKA_CFG_NODE_ID=2
+      - KAFKA_KRAFT_CLUSTER_ID=Dp8EP4xuT4O19qjQjGee2Q
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9091,2@kafka-2:9091,3@kafka-3:9091
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-2:9090,EXTERNAL://${HOSTNAME:-localhost}:9094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    volumes:
+      - kafka-2-data:/bitnami/kafka
+    networks:
+      - "game-net"
+
+  kafka-3:
+    image: bitnami/kafka:latest
+    ports:
+      - "9096:9096"
+    environment:
+      - KAFKA_CFG_NODE_ID=3
+      - KAFKA_KRAFT_CLUSTER_ID=Dp8EP4xuT4O19qjQjGee2Q
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9091,2@kafka-2:9091,3@kafka-3:9091
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9090,CONTROLLER://:9091,EXTERNAL://:9096
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka-3:9090,EXTERNAL://${HOSTNAME:-localhost}:9096
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    volumes:
+      - kafka-3-data:/bitnami/kafka
+    networks:
+      - "game-net"
+  nginx:
+    build: "/frontend"
+    container_name: nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - auth-service
+      - game-service
+    networks:
+      - "game-net"
+volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
+  auth_postgres_data:
+    external: true
+    name: auth_postgres_data
+  game_postgres_data:
+    external: true
+    name: game_postgres_data
+networks:
+  game-net:
+    external: true
